@@ -8,14 +8,11 @@ import io
 def microwatt_to_dbm(val):
     try:
         s_val = str(val).replace('"', '').replace('=', '').strip()
-
         if s_val.lower() in ['invalid', 'null', 'nan', '']:
             return -99.0
-            
         num = pd.to_numeric(s_val, errors='coerce')
         if pd.isna(num) or num <= 0:
             return -99.0
-            
         mw = (num * 0.1) / 1000
         return round(10 * np.log10(mw), 2)
     except:
@@ -24,7 +21,7 @@ def microwatt_to_dbm(val):
 st.set_page_config(page_title="Universal SFP Analyzer", layout="wide")
 st.title("Анализ оптики")
 
-uploaded_file = st.file_uploader("Загрузите CSV отчет (DSP SFP + FAN + RRU)", type="csv")
+uploaded_file = st.file_uploader("Загрузите CSV отчет (DSP SFP + LST RRUCHAIN)", type="csv")
 
 if uploaded_file:
     try:
@@ -33,7 +30,6 @@ if uploaded_file:
         
         all_rows = []
         current_site = "Unknown_Site"
-        
         headers = None
         
         for line in lines:
@@ -48,11 +44,14 @@ if uploaded_file:
                 reader = csv.reader([line_clean], skipinitialspace=True)
                 headers = next(reader)
                 headers = [h.strip() for h in headers]
-                continue 
+                continue
 
             if headers:
-                if not line_clean or "RETCODE" in line_clean or "---" in line_clean:
+                if "RETCODE" in line_clean or "---" in line_clean:
                     headers = None
+                    continue
+                
+                if not line_clean:
                     continue
                 
                 try:
@@ -64,7 +63,6 @@ if uploaded_file:
                             row_dict = {}
                             for h, v in zip(headers, row_values):
                                 row_dict[h] = v
-                            
                             row_dict['Site Name'] = current_site
                             all_rows.append(row_dict)
                 except:
