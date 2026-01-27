@@ -16,9 +16,9 @@ def microwatt_to_dbm(val):
         return -99.0
 
 st.set_page_config(page_title="SFP Sector Analyzer", layout="wide")
-st.title("📡 Анализ оптических затуханий")
+st.title("Анализ затуханий")
 
-uploaded_file = st.file_uploader("Загрузите CSV отчет", type="csv")
+uploaded_file = st.file_uploader("В MML-командах вводим команды "DSP SFP" и "LST RRUCHAIN", экспортируем в CSV, сюда грузим получившийся CSV отчет", type="csv")
 
 if uploaded_file:
     try:
@@ -85,3 +85,4 @@ if uploaded_file:
 
     except Exception as e:
         st.error(f"Ошибка: {e}")
+
