@@ -47,18 +47,19 @@ if uploaded_file:
                 j = i + 1
                 while j < len(lines):
                     data_line = lines[j].strip()
+                    
                     if not data_line or "---" in data_line or "RETCODE" in data_line:
                         break
                     
                     data_reader = csv.reader([lines[j]])
                     parts = next(data_reader)
                     
-                    if len(parts) >= len(headers) - 3:
+                    if len(parts) >= len(headers) - 5:
                         row_dict = dict(zip(headers, [p.strip() for p in parts]))
                         row_dict['Site Name'] = current_site
                         all_data.append(row_dict)
                     j += 1
-                i = j
+                i = j 
             i += 1
 
         if all_data:
@@ -75,28 +76,20 @@ if uploaded_file:
                 df['TX_dBm'] = df[col_tx].apply(microwatt_to_dbm)
                 df['RX_dBm'] = df[col_rx].apply(microwatt_to_dbm)
                 
-                active_sfp = df[df['TX_dBm'] > -90].copy()
+                active_sfp = df[(df['TX_dBm'] > -90) | (df['RX_dBm'] > -90)].copy()
                 active_sfp['Attenuation'] = round(active_sfp['TX_dBm'] - active_sfp['RX_dBm'], 2)
 
-                st.header("Сводные данные")
+                st.header("Сводный отчет")
                 
-                c1, c2 = st.columns(2)
-                with c1:
-                    sites = sorted(active_sfp['Site Name'].unique())
-                    sel_sites = st.multiselect("Выберите БС", sites, default=sites)
-                with c2:
-                    subs = sorted(active_sfp[col_sub].unique())
-                    sel_subs = st.multiselect("Выберите Subrack", subs, default=subs)
-
-                filtered_df = active_sfp[
-                    (active_sfp['Site Name'].isin(sel_sites)) & 
-                    (active_sfp[col_sub].isin(sel_subs))
-                ]
+                sites = sorted(active_sfp['Site Name'].unique())
+                sel_sites = st.multiselect("Выберите БС", sites, default=sites)
+                
+                filtered_df = active_sfp[active_sfp['Site Name'].isin(sel_sites)]
 
                 m1, m2, m3 = st.columns(3)
-                m1.metric("Активных SFP", len(filtered_df))
+                m1.metric("Активных портов", len(filtered_df))
                 m2.metric("Ср. RX", f"{filtered_df['RX_dBm'].mean():.2f} dBm" if not filtered_df.empty else "0")
-                m3.metric("Критические (<-8dBm)", len(filtered_df[filtered_df['RX_dBm'] < -8]))
+                m3.metric("Критические (RX < -8)", len(filtered_df[filtered_df['RX_dBm'] < -8]))
 
                 def color_attenuation(val):
                     if val > 8: return 'background-color: #ff4b4b; color: white' 
@@ -110,11 +103,11 @@ if uploaded_file:
                 )
                 
                 csv_data = filtered_df.to_csv(index=False).encode('utf-8')
-                st.download_button("Скачать результат", csv_data, "sfp_report.csv", "text/csv")
+                st.download_button("Скачать результат", csv_data, "sfp_full_report.csv", "text/csv")
             else:
                 st.error("Колонки TX/RX не найдены")
         else:
-            st.warning("Данные не найдены")
+            st.warning("В файле не обнаружено данных DSP SFP. Проверьте формат.")
 
     except Exception as e:
         st.error(f"Ошибка: {e}")
