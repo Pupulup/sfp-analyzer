@@ -55,7 +55,7 @@ if uploaded_file:
             st.header("Анализ по секторам")
 
             sectors = sorted(active_sfp[cols['subrack']].unique())
-            selected_sector = st.multiselect("Выберите сектора (Subrack No.) для отображения", sectors, default=sectors)
+            selected_sector = st.multiselect("Выберите Subrack No. для отображения", sectors, default=sectors)
 
             filtered_df = active_sfp[active_sfp[cols['subrack']].isin(selected_sector)]
 
@@ -67,13 +67,13 @@ if uploaded_file:
                 st.metric("Средний прием (RX)", f"{avg_rx:.2f} dBm")
             with col3:
                 critical = len(filtered_df[filtered_df['RX_dBm'] < -8])
-                st.metric("Критические линки (<-20dBm)", critical)
+                st.metric("Критические линки (<-8dBm)", critical)
 
             st.subheader("Детальные данные")
 
             def color_rx(val):
-                if val < -22: return 'background-color: #ff4b4b; color: white'
-                if val < -17: return 'background-color: #ffa500'
+                if val < -8: return 'background-color: #ff4b4b; color: white'
+                if val < -5: return 'background-color: #ffa500'
                 return 'background-color: #28a745; color: white'
 
             display_cols = [cols['subrack'], cols['slot'], cols['port'], 'TX_dBm', 'RX_dBm', 'Attenuation']
@@ -89,4 +89,5 @@ if uploaded_file:
     except Exception as e:
 
         st.error(f"Ошибка: {e}")
+
 
