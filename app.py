@@ -35,16 +35,19 @@ if uploaded_file:
         for line in lines:
             line_clean = line.strip()
             
-            if "78_" in line_clean and "DSP" not in line_clean:
+            if "78_" in line_clean and ("BTS_" in line_clean or line_clean.startswith('"BTS_78')):
                 match = re.search(r'(?:BTS_)?(78_[A-Za-z0-9_]+)', line_clean)
                 if match:
                     current_site = match.group(1)
 
             if "Cabinet No." in line_clean and "TX optical power" in line_clean:
-                reader = csv.reader([line_clean], skipinitialspace=True)
-                headers = next(reader)
-                headers = [h.strip() for h in headers]
-                continue
+                try:
+                    reader = csv.reader([line_clean], skipinitialspace=True)
+                    headers = next(reader)
+                    headers = [h.strip() for h in headers]
+                    continue
+                except:
+                    continue
 
             if headers:
                 if "RETCODE" in line_clean or "---" in line_clean:
@@ -58,11 +61,18 @@ if uploaded_file:
                     reader = csv.reader([line_clean], skipinitialspace=True)
                     row_values = next(reader)
                     
-                    if len(row_values) >= len(headers) - 5:
-                        if row_values[0].strip().isdigit():
+                    if not row_values:
+                        continue
+                        
+                    if len(row_values) >= len(headers) - 10:
+                        first_col = row_values[0].strip()
+                        if first_col.isdigit():
                             row_dict = {}
-                            for h, v in zip(headers, row_values):
-                                row_dict[h] = v
+                            # Безопасное заполнение
+                            limit = min(len(headers), len(row_values))
+                            for k in range(limit):
+                                row_dict[headers[k]] = row_values[k]
+                            
                             row_dict['Site Name'] = current_site
                             all_rows.append(row_dict)
                 except:
@@ -80,8 +90,10 @@ if uploaded_file:
             if col_tx and col_rx:
                 df['TX_dBm'] = df[col_tx].apply(microwatt_to_dbm)
                 df['RX_dBm'] = df[col_rx].apply(microwatt_to_dbm)
+                
                 df_active = df[(df['TX_dBm'] > -90) | (df['RX_dBm'] > -90)].copy()
                 df_active['Attenuation'] = df_active['TX_dBm'] - df_active['RX_dBm']
+                
                 st.success(f"Обработано строк: {len(df_active)}. Сайтов: {df_active['Site Name'].nunique()}")
 
                 all_sites = sorted(df_active['Site Name'].unique())
@@ -93,15 +105,18 @@ if uploaded_file:
 
                 def highlight_vals(row):
                     styles = [''] * len(row)
-                    idx_rx = row.index.get_loc('RX_dBm')
-                    idx_att = row.index.get_loc('Attenuation')
-                    
-                    rx_val = row.iloc[idx_rx]
-                    att_val = row.iloc[idx_att]
-                    
-                    if att_val > 8: styles[idx_att] = 'background-color: #ff4b4b; color: white'
-                    elif att_val > 5: styles[idx_att] = 'background-color: #ffa500'
-                    
+                    try:
+                        idx_rx = row.index.get_loc('RX_dBm')
+                        idx_att = row.index.get_loc('Attenuation')
+                        
+                        rx_val = row.iloc[idx_rx]
+                        att_val = row.iloc[idx_att]
+                        
+                        if isinstance(att_val, (int, float)):
+                            if att_val > 8: styles[idx_att] = 'background-color: #ff4b4b; color: white'
+                            elif att_val > 5: styles[idx_att] = 'background-color: #ffa500'
+                    except:
+                        pass
                     return styles
 
                 show_cols = ['Site Name', col_sub, col_slot, col_port, 'TX_dBm', 'RX_dBm', 'Attenuation']
@@ -110,10 +125,12 @@ if uploaded_file:
                     filtered_df[show_cols].style.apply(highlight_vals, axis=1),
                     use_container_width=True
                 )
+                
+                csv_data = filtered_df.to_csv(index=False).encode('utf-8')
+                st.download_button("Скачать отчет", csv_data, "sfp_report.csv", "text/csv")
 
             else:
                 st.error(f"Не найдены колонки мощности. Доступные колонки: {list(df.columns)}")
-                st.write("Пример данных:", df.head(1))
         else:
             st.warning("Данные не найдены. Возможно, в файле нет секции 'DSP SFP' или заголовки отличаются.")
             
