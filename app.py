@@ -18,7 +18,7 @@ def microwatt_to_dbm(val):
         return -99.0
 
 st.set_page_config(page_title="SFP Sector Analyzer", layout="wide")
-st.title("📡 Анализ оптики по секторам (Subrack)")
+st.title("Анализ оптики")
 
 uploaded_file = st.file_uploader("Загрузите CSV отчет", type="csv")
 
@@ -94,4 +94,5 @@ if uploaded_file:
             st.error("Не удалось найти все необходимые колонки (Subrack, TX, RX).")
 
     except Exception as e:
+
         st.error(f"Ошибка: {e}")
