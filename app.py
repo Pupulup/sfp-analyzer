@@ -20,7 +20,7 @@ def microwatt_to_dbm(val):
 st.set_page_config(page_title="Multi-BS SFP Analyzer", layout="wide")
 st.title("Анализ оптики")
 
-uploaded_file = st.file_uploader("Загрузите CSV отчет (экспорт из MML)", type="csv")
+uploaded_file = st.file_uploader("Загрузите CSV отчет", type="csv")
 
 if uploaded_file:
     try:
@@ -34,7 +34,7 @@ if uploaded_file:
         while i < len(lines):
             line_raw = lines[i]
             line_clean = line_raw.replace('"', '').strip()
-    
+            
             if "78_" in line_clean:
                 site_match = re.search(r'78_\d+[A-Z0-9_]*', line_clean)
                 if site_match:
@@ -49,8 +49,11 @@ if uploaded_file:
                     data_line = lines[j].strip()
                     if not data_line or "---" in data_line or "RETCODE" in data_line:
                         break
+                    
                     data_reader = csv.reader([lines[j]])
                     parts = next(data_reader)
+                    
+                    if len(parts) >= len(headers) - 3:
                         row_dict = dict(zip(headers, [p.strip() for p in parts]))
                         row_dict['Site Name'] = current_site
                         all_data.append(row_dict)
@@ -60,7 +63,6 @@ if uploaded_file:
 
         if all_data:
             df = pd.DataFrame(all_data)
-
             df.columns = [c.strip() for c in df.columns]
 
             col_tx = next((c for c in df.columns if "TX optical power" in c), None)
@@ -110,9 +112,9 @@ if uploaded_file:
                 csv_data = filtered_df.to_csv(index=False).encode('utf-8')
                 st.download_button("Скачать результат", csv_data, "sfp_report.csv", "text/csv")
             else:
-                st.error("Колонки TX/RX не найдены. Проверьте заголовки в CSV.")
+                st.error("Колонки TX/RX не найдены")
         else:
-            st.warning("В файле не найдено строк данных DSP SFP.")
+            st.warning("Данные не найдены")
 
     except Exception as e:
-        st.error(f"Ошибка при обработке: {e}")
+        st.error(f"Ошибка: {e}")
