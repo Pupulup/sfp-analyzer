@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 import io
 
-# 1. Функция конвертации (0.1 microwatt -> dBm)
+#Функция конвертации (0.1 microwatt -> dBm)
 def microwatt_to_dbm(val):
     try:
         if isinstance(val, str):
@@ -11,7 +11,6 @@ def microwatt_to_dbm(val):
         num = pd.to_numeric(val, errors='coerce')
         if pd.isna(num) or num <= 0:
             return -99.0
-        # Формула: 10 * log10( (val * 0.1) / 1000 )
         mw = (num * 0.1) / 1000
         return round(10 * np.log10(mw), 2)
     except:
@@ -26,19 +25,16 @@ if uploaded_file:
     try:
         content = uploaded_file.getvalue().decode('utf-8')
         lines = content.splitlines()
-
-        # Поиск строки заголовков
         start_line = 0
         for i, line in enumerate(lines):
             if "Cabinet No." in line and "TX optical power" in line:
                 start_line = i
                 break
-
+                
         data_io = io.StringIO("\n".join(lines[start_line:]))
         df = pd.read_csv(data_io, quotechar='"', skipinitialspace=True)
         df.columns = [c.strip().replace('"', '') for c in df.columns]
 
-        # Основные колонки
         cols = {
             'subrack': 'Subrack No.',
             'slot': 'Slot No.',
@@ -48,23 +44,21 @@ if uploaded_file:
         }
 
         if all(c in df.columns for c in cols.values()):
-            # Подготовка данных
+   
             df['TX_dBm'] = df[cols['tx']].apply(microwatt_to_dbm)
             df['RX_dBm'] = df[cols['rx']].apply(microwatt_to_dbm)
 
-            # Фильтруем только живые SFP
+           
             active_sfp = df[df['TX_dBm'] > -90].copy()
             active_sfp['Attenuation'] = round(active_sfp['TX_dBm'] - active_sfp['RX_dBm'], 2)
 
-            # --- БЛОК АНАЛИТИКИ ПО СЕКТОРАМ ---
-            st.header("🔍 Анализ по секторам")
+            st.header("Анализ по секторам")
 
             sectors = sorted(active_sfp[cols['subrack']].unique())
             selected_sector = st.multiselect("Выберите сектора (Subrack No.) для отображения", sectors, default=sectors)
 
             filtered_df = active_sfp[active_sfp[cols['subrack']].isin(selected_sector)]
 
-            # Метрики по секторам
             col1, col2, col3 = st.columns(3)
             with col1:
                 st.metric("Всего активных SFP", len(filtered_df))
@@ -72,10 +66,9 @@ if uploaded_file:
                 avg_rx = filtered_df['RX_dBm'].mean() if not filtered_df.empty else 0
                 st.metric("Средний прием (RX)", f"{avg_rx:.2f} dBm")
             with col3:
-                critical = len(filtered_df[filtered_df['RX_dBm'] < -20])
+                critical = len(filtered_df[filtered_df['RX_dBm'] < -8])
                 st.metric("Критические линки (<-20dBm)", critical)
 
-            # Таблица с группировкой
             st.subheader("Детальные данные")
 
             def color_rx(val):
@@ -96,3 +89,4 @@ if uploaded_file:
     except Exception as e:
 
         st.error(f"Ошибка: {e}")
+
