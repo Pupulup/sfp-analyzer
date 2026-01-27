@@ -3,7 +3,6 @@ import pandas as pd
 import numpy as np
 import io
 
-#Функция конвертации (0.1 microwatt -> dBm)
 def microwatt_to_dbm(val):
     try:
         if isinstance(val, str):
@@ -17,7 +16,7 @@ def microwatt_to_dbm(val):
         return -99.0
 
 st.set_page_config(page_title="SFP Sector Analyzer", layout="wide")
-st.title("Анализ оптики")
+st.title("📡 Анализ оптических затуханий")
 
 uploaded_file = st.file_uploader("Загрузите CSV отчет", type="csv")
 
@@ -44,11 +43,9 @@ if uploaded_file:
         }
 
         if all(c in df.columns for c in cols.values()):
-   
             df['TX_dBm'] = df[cols['tx']].apply(microwatt_to_dbm)
             df['RX_dBm'] = df[cols['rx']].apply(microwatt_to_dbm)
 
-           
             active_sfp = df[df['TX_dBm'] > -90].copy()
             active_sfp['Attenuation'] = round(active_sfp['TX_dBm'] - active_sfp['RX_dBm'], 2)
 
@@ -71,23 +68,20 @@ if uploaded_file:
 
             st.subheader("Детальные данные")
 
-            def color_rx(val):
-                if val < -8: return 'background-color: #ff4b4b; color: white'
-                if val < -5: return 'background-color: #ffa500'
-                return 'background-color: #28a745; color: white'
+            def color_attenuation(val):
+                if val > 8: return 'background-color: #ff4b4b; color: white' 
+                if val > 5: return 'background-color: #ffa500'
+                return '' 
 
             display_cols = [cols['subrack'], cols['slot'], cols['port'], 'TX_dBm', 'RX_dBm', 'Attenuation']
-            st.dataframe(
-                filtered_df[display_cols].style.applymap(color_rx, subset=['RX_dBm']),
-                use_container_width=True
-            )
+            
+            styled_df = filtered_df[display_cols].style\
+                .applymap(color_attenuation, subset=['Attenuation'])
 
+            st.dataframe(styled_df, use_container_width=True)
 
         else:
             st.error("Не удалось найти все необходимые колонки (Subrack, TX, RX).")
 
     except Exception as e:
-
         st.error(f"Ошибка: {e}")
-
-
