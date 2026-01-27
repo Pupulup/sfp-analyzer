@@ -16,10 +16,10 @@ def microwatt_to_dbm(val):
     except:
         return -99.0
 
-st.set_page_config(page_title="SFP Sector Analyzer", layout="wide")
-st.title("Анализ затуханий")
+st.set_page_config(page_title="Multi-BS SFP Analyzer", layout="wide")
+st.title("Анализ оптики")
 
-uploaded_file = st.file_uploader("В MML-командах вводим команды DSP SFP и LST RRUCHAIN, экспортируем в CSV, сюда грузим получившийся CSV отчет", type="csv")
+uploaded_file = st.file_uploader("В MML-командах пропишите DSP SFP и LST RRUCHAIN, экспортируйте в csv файл и загрузите)", type="csv")
 
 if uploaded_file:
     try:
@@ -27,38 +27,41 @@ if uploaded_file:
         lines = content.splitlines()
         
         all_data = []
-        current_site = "Unknown"
+        current_site = "Unknown Site"
         
         i = 0
         while i < len(lines):
-            line = lines[i]
+            line = lines[i].strip()
             
             if "78_" in line:
-                site_match = re.search(r'BTS_78_\d+_[A-Z0-9_]+', line)
+                site_match = re.search(r'78_\d+[A-Z0-9_]*', line)
                 if site_match:
-                    current_site = site_match.group().replace('"', '')
+                    current_site = site_match.group()
 
             if "Cabinet No." in line and "TX optical power" in line:
-                header_line = i
-                table_lines = [lines[header_line]]
-                j = header_line + 1
-                while j < len(lines) and "Cabinet No." not in lines[j] and lines[j].strip() != "" and "---" not in lines[j]:
-                    if lines[j].startswith('"'):
-                        table_lines.append(lines[j])
+                headers = [c.strip().replace('"', '') for c in line.split(',')]
+                table_rows = []
+      
+                j = i + 1
+                while j < len(lines):
+                    data_line = lines[j].strip()
+                    if not data_line or "END" in data_line or "---" in data_line:
+                        break
+                    parts = next(io.csv.reader([data_line]))
+                    if len(parts) >= len(headers) - 2:
+                        row_dict = dict(zip(headers, [p.strip() for p in parts]))
+                        row_dict['Site Name'] = current_site
+                        table_rows.append(row_dict)
                     j += 1
                 
-                data_io = io.StringIO("\n".join(table_lines))
-                temp_df = pd.read_csv(data_io, quotechar='"', skipinitialspace=True)
-                temp_df.columns = [c.strip().replace('"', '') for c in temp_df.columns]
-
-                temp_df['Site Name'] = current_site
-                all_data.append(temp_df)
-                i = j - 1
+                if table_rows:
+                    all_data.extend(table_rows)
+                i = j 
+            
             i += 1
 
         if all_data:
-            df = pd.concat(all_data, ignore_index=True)
-
+            df = pd.DataFrame(all_data)
             cols = {
                 'subrack': 'Subrack No.',
                 'slot': 'Slot No.',
@@ -67,54 +70,45 @@ if uploaded_file:
                 'rx': 'RX optical power(0.1microwatt)'
             }
 
-            if all(c in df.columns for c in cols.values()):
-                df['TX_dBm'] = df[cols['tx']].apply(microwatt_to_dbm)
-                df['RX_dBm'] = df[cols['rx']].apply(microwatt_to_dbm)
+            df['TX_dBm'] = df[cols['tx']].apply(microwatt_to_dbm)
+            df['RX_dBm'] = df[cols['rx']].apply(microwatt_to_dbm)
+            active_sfp = df[df['TX_dBm'] > -90].copy()
+            active_sfp['Attenuation'] = round(active_sfp['TX_dBm'] - active_sfp['RX_dBm'], 2)
 
-                active_sfp = df[df['TX_dBm'] > -90].copy()
-                active_sfp['Attenuation'] = round(active_sfp['TX_dBm'] - active_sfp['RX_dBm'], 2)
+            st.header("📊 Сводные данные по всем объектам")
+            
+            c1, c2 = st.columns(2)
+            with c1:
+                selected_sites = st.multiselect("Выберите БС", sorted(active_sfp['Site Name'].unique()), default=sorted(active_sfp['Site Name'].unique()))
+            with c2:
+                selected_subs = st.multiselect("Выберите Subrack", sorted(active_sfp[cols['subrack']].unique()), default=sorted(active_sfp[cols['subrack']].unique()))
 
-                st.header("Анализ по БС и секторам")
+            filtered_df = active_sfp[
+                (active_sfp['Site Name'].isin(selected_sites)) & 
+                (active_sfp[cols['subrack']].isin(selected_subs))
+            ]
 
-                sites = sorted(active_sfp['Site Name'].unique())
-                selected_sites = st.multiselect("Выберите БС (Site Name) для отображения", sites, default=sites)
+            m1, m2, m3 = st.columns(3)
+            m1.metric("Активных портов", len(filtered_df))
+            m2.metric("Средний RX", f"{filtered_df['RX_dBm'].mean():.2f} dBm" if not filtered_df.empty else "0")
+            m3.metric("Критические (<-8dBm)", len(filtered_df[filtered_df['RX_dBm'] < -8]))
 
-                sectors = sorted(active_sfp[cols['subrack']].unique())
-                selected_sector = st.multiselect("Выберите Subrack No. для отображения", sectors, default=sectors)
+            def color_attenuation(val):
+                if val > 8: return 'background-color: #ff4b4b; color: white' 
+                if val > 5: return 'background-color: #ffa500'
+                return ''
 
-                filtered_df = active_sfp[
-                    (active_sfp['Site Name'].isin(selected_sites)) & 
-                    (active_sfp[cols['subrack']].isin(selected_sector))
-                ]
+            display_cols = ['Site Name', cols['subrack'], cols['slot'], cols['port'], 'TX_dBm', 'RX_dBm', 'Attenuation']
+            st.dataframe(
+                filtered_df[display_cols].style.applymap(color_attenuation, subset=['Attenuation']),
+                use_container_width=True
+            )
 
-                col1, col2, col3 = st.columns(3)
-                with col1:
-                    st.metric("Всего активных SFP", len(filtered_df))
-                with col2:
-                    avg_rx = filtered_df['RX_dBm'].mean() if not filtered_df.empty else 0
-                    st.metric("Средний прием (RX)", f"{avg_rx:.2f} dBm")
-                with col3:
-                    critical = len(filtered_df[filtered_df['RX_dBm'] < -8])
-                    st.metric("Критические линки (<-8dBm)", critical)
+            csv = filtered_df.to_csv(index=False).encode('utf-8')
+            st.download_button("Скачать результат CSV", csv, "sfp_report.csv", "text/csv")
 
-                st.subheader("Детальные данные")
-
-                def color_attenuation(val):
-                    if val > 8: return 'background-color: #ff4b4b; color: white' 
-                    if val > 5: return 'background-color: #ffa500'
-                    return '' 
-
-                display_cols = ['Site Name', cols['subrack'], cols['slot'], cols['port'], 'TX_dBm', 'RX_dBm', 'Attenuation']
-                
-                styled_df = filtered_df[display_cols].style\
-                    .applymap(color_attenuation, subset=['Attenuation'])
-
-                st.dataframe(styled_df, use_container_width=True)
-
-            else:
-                st.error("Не удалось найти все необходимые колонки (Subrack, TX, RX).")
         else:
-            st.warning("В файле не найдено подходящих данных.")
+            st.warning("В файле не обнаружено данных DSP SFP. Убедитесь, что вы загружаете правильный отчет.")
 
     except Exception as e:
         st.error(f"Ошибка: {e}")
