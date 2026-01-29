@@ -89,7 +89,6 @@ if uploaded_file:
                 df_active = df[(df['TX_dBm'] > -90) | (df['RX_dBm'] > -90)].copy()
                 df_active['Attenuation'] = round(df_active['TX_dBm'] - df_active['RX_dBm'], 2)
 
-                st.success(f"Обработано строк: {len(df_active)}. Сайтов: {df_active['Site Name'].nunique()}")
 
                 all_sites = sorted(df_active['Site Name'].unique())
                 sel_sites = st.multiselect("Фильтр по БС", all_sites, default=all_sites)
