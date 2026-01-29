@@ -102,9 +102,9 @@ if uploaded_file:
                     try:
                         i = row.index.get_loc('Attenuation')
                         v = row.iloc[i]
-                        if v > 8:
+                        if v > 4:
                             styles[i] = 'background-color: #ff4b4b; color: white'
-                        elif v > 5:
+                        elif v > 3.5:
                             styles[i] = 'background-color: #ffa500'
                     except:
                         pass
@@ -113,8 +113,6 @@ if uploaded_file:
                 show_cols = ['Site Name', col_sub, col_slot, col_port, 'TX_dBm', 'RX_dBm', 'Attenuation']
                 st.dataframe(filtered_df[show_cols].style.apply(highlight_vals, axis=1), use_container_width=True)
 
-                csv_data = filtered_df.to_csv(index=False).encode('utf-8')
-                st.download_button("Скачать отчет", csv_data, "sfp_report.csv", "text/csv")
             else:
                 st.error("Колонки мощности не найдены в таблице.")
         else:
