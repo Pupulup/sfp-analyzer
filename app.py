@@ -6,8 +6,8 @@ import csv
 
 st.set_page_config(page_title="Huawei Link Analyzer", layout="wide")
 
-DL_WARN, DL_CRIT = 3, 5
-UL_WARN, UL_CRIT = 3, 5
+DL_WARN, DL_CRIT = 3.5, 4
+UL_WARN, UL_CRIT = 3.5, 4
 
 def microwatt_to_dbm(val):
     try:
@@ -37,7 +37,7 @@ def normalize_header(headers):
     return [mapping.get(h, h) for h in headers]
 
 def format_power(val):
-    return f"{val} dBm" if val != -99.0 else "⚠️ No Data"
+    return f"{val} dBm" if val != -99.0 else "No Data"
 
 def get_status_color(val, warn, crit):
     if val == -99.0: return "#6c757d"
@@ -91,11 +91,11 @@ if df_sfp.empty:
     st.error("Нет данных DSP SFP")
     st.stop()
 
-site = st.selectbox("Сайт", sorted(df_sfp["Site"].unique()))
+site = st.selectbox("БС", sorted(df_sfp["Site"].unique()))
 s_sfp = df_sfp[df_sfp["Site"] == site]
 s_chains = df_chain[df_chain["Site"] == site]
 
-st.header("🔍 Сопоставление портов")
+st.header("Сопоставление портов")
 
 results = []
 for _, chain in s_chains.iterrows():
@@ -135,7 +135,7 @@ for _, chain in s_chains.iterrows():
                 st.markdown(f"<div style='text-align:center; color:{get_status_color(ul_loss, UL_WARN, UL_CRIT)}; margin-top:10px;'><b>UL: {ul_loss} dB</b></div>", unsafe_allow_html=True)
                 st.progress(min(max(ul_loss/10, 0.0), 1.0))
             else:
-                st.warning("⚠️ Пара (RRU) не определена или нет данных в Port " + next_port)
+                st.warning("Пара (RRU) не определена или нет данных в Port " + next_port)
 
         with c3:
             if r is not None:
@@ -145,4 +145,5 @@ for _, chain in s_chains.iterrows():
             else:
                 st.error("**RRU Not Found**")
         st.divider()
+
 
