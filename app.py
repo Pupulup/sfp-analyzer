@@ -3,7 +3,6 @@ import pandas as pd
 import numpy as np
 import re
 import csv
-import matplotlib.pyplot as plt
 
 st.set_page_config(page_title="Huawei Link Analyzer", layout="wide")
 
@@ -146,3 +145,4 @@ for _, chain in s_chains.iterrows():
             else:
                 st.error("**RRU Not Found**")
         st.divider()
+
