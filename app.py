@@ -16,7 +16,7 @@ def calculate_dbm(val_str):
 st.set_page_config(page_title="Huawei Link Analyzer", layout="wide")
 st.title("Link Analyzer")
 st.markdown("""
-В MML клмандах DSP SFP + LST RRUCAIN -> экспорт в CSV
+В MML командах DSP SFP + LST RRUCAIN -> экспорт в CSV
 """)
 
 uploaded_file = st.file_uploader("Загрузите CSV файл", type="csv")
@@ -132,3 +132,4 @@ if uploaded_file:
 
         if found_count == 0:
             st.warning("Совпадений не найдено. Убедитесь, что в DSP SFP есть данные для удаленных Subrack.")
+
