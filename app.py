@@ -43,7 +43,7 @@ def get_status_color(val, warn, crit):
     if val == -99.0: return "#6c757d"
     return "#FF4B4B" if val > crit else "#FFA500" if val > warn else "#00C853"
 
-st.title("Пока так")
+st.title("Херня, не спользуйте")
 
 uploaded_file = st.file_uploader("Загрузите CSV", type="csv")
 if not uploaded_file:
@@ -145,5 +145,6 @@ for _, chain in s_chains.iterrows():
             else:
                 st.error("**RRU Not Found**")
         st.divider()
+
 
 
